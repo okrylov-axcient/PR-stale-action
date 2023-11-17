@@ -35,9 +35,35 @@ import {RateLimit} from './rate-limit';
  */
 export class IssuesProcessor {
   private static _updatedSince(timestamp: string, num_days: number): boolean {
-    const daysInMillis = 1000 * 60 * 60 * 24 * num_days;
-    const millisSinceLastUpdated =
-      new Date().getTime() - new Date(timestamp).getTime();
+    // const daysInMillis = 1000 * 60 * 60 * 24 * num_days;
+    // const millisSinceLastUpdated =
+    //   new Date().getTime() - new Date(timestamp).getTime();
+    //
+    // return millisSinceLastUpdated <= daysInMillis;
+    const startDate = new Date(timestamp);
+    const endDate = new Date();
+    let effectiveDays = num_days;
+
+    // Function to count weekend days between two dates
+    const countWeekendDays = (start: Date, end: Date) => {
+      let count = 0;
+      let currentDate = new Date(start);
+
+      while (currentDate < end) {
+        if (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+          count++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      return count;
+    };
+
+    const weekendDays = countWeekendDays(startDate, endDate);
+    effectiveDays += weekendDays; // Adjust the number of days including weekends
+
+    const daysInMillis = 1000 * 60 * 60 * 24 * effectiveDays;
+    const millisSinceLastUpdated = endDate.getTime() - startDate.getTime();
 
     return millisSinceLastUpdated <= daysInMillis;
   }
