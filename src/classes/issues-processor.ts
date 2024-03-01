@@ -35,37 +35,41 @@ import {RateLimit} from './rate-limit';
  */
 export class IssuesProcessor {
   private static _updatedSince(timestamp: string, num_days: number): boolean {
-    // const daysInMillis = 1000 * 60 * 60 * 24 * num_days;
-    // const millisSinceLastUpdated =
-    //   new Date().getTime() - new Date(timestamp).getTime();
-    //
-    // return millisSinceLastUpdated <= daysInMillis;
-    const startDate = new Date(timestamp);
-    const endDate = new Date();
-    let effectiveDays = num_days;
+    const hoursInDay: number = 24;
+    const now: Date = new Date();
 
-    // Function to count weekend days between two dates
-    const countWeekendDays = (start: Date, end: Date) => {
-      let count = 0;
-      let currentDate = new Date(start);
+    let updated: Date = new Date(timestamp);
+    let threshold: number = hoursInDay * num_days;
 
-      while (currentDate < end) {
-        if (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-          count++;
+    if (updated.getTime() + (threshold * 60 * 60 * 1000) > now.getTime()) {
+      return true;
+    }
+
+    let elapsed: number = 0;
+
+    const isWorkingDay = (date: Date) => [0, 6].indexOf(date.getDay()) === -1;
+    const isSameDay = (f: Date, s: Date) => f.toDateString() == s.toDateString();
+
+    if (isWorkingDay(updated)) {
+      elapsed += 24 - updated.getHours(); // Get hours from the pr updated day
+    }
+
+    let datePointer: Date = new Date(updated.getFullYear(), updated.getMonth(), updated.getDate() + 1);
+
+    while (elapsed <= threshold) {
+      if (isSameDay(datePointer, now)) {
+          if (isWorkingDay(now)) {
+            elapsed += now.getHours(); // Get hours from the current day
+          }
+        break;
+      } else {
+        if (isWorkingDay(datePointer)) {
+          elapsed += hoursInDay; // Add 24 hours for days between
         }
-        currentDate.setDate(currentDate.getDate() + 1);
       }
-
-      return count;
-    };
-
-    const weekendDays = countWeekendDays(startDate, endDate);
-    effectiveDays += weekendDays; // Adjust the number of days including weekends
-
-    const daysInMillis = 1000 * 60 * 60 * 24 * effectiveDays;
-    const millisSinceLastUpdated = endDate.getTime() - startDate.getTime();
-
-    return millisSinceLastUpdated <= daysInMillis;
+      datePointer.setDate(datePointer.getDate() + 1);
+    }
+    return elapsed <= threshold;
   }
 
   private static _endIssueProcessing(issue: Issue): void {

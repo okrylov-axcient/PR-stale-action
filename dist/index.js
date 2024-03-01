@@ -387,9 +387,35 @@ const rate_limit_1 = __nccwpck_require__(7069);
  */
 class IssuesProcessor {
     static _updatedSince(timestamp, num_days) {
-        const daysInMillis = 1000 * 60 * 60 * 24 * num_days;
-        const millisSinceLastUpdated = new Date().getTime() - new Date(timestamp).getTime();
-        return millisSinceLastUpdated <= daysInMillis;
+        const hoursInDay = 24;
+        const now = new Date();
+        let updated = new Date(timestamp);
+        let threshold = hoursInDay * num_days;
+        if (updated.getTime() + (threshold * 60 * 60 * 1000) > now.getTime()) {
+            return true;
+        }
+        let elapsed = 0;
+        const isWorkingDay = (date) => [0, 6].indexOf(date.getDay()) === -1;
+        const isSameDay = (f, s) => f.toDateString() == s.toDateString();
+        if (isWorkingDay(updated)) {
+            elapsed += 24 - updated.getHours(); // Get hours from the pr updated day
+        }
+        let datePointer = new Date(updated.getFullYear(), updated.getMonth(), updated.getDate() + 1);
+        while (elapsed <= threshold) {
+            if (isSameDay(datePointer, now)) {
+                if (isWorkingDay(now)) {
+                    elapsed += now.getHours(); // Get hours from the current day
+                }
+                break;
+            }
+            else {
+                if (isWorkingDay(datePointer)) {
+                    elapsed += hoursInDay; // Add 24 hours for days between
+                }
+            }
+            datePointer.setDate(datePointer.getDate() + 1);
+        }
+        return elapsed <= threshold;
     }
     static _endIssueProcessing(issue) {
         const consumedOperationsCount = issue.operations.getConsumedOperationsCount();
